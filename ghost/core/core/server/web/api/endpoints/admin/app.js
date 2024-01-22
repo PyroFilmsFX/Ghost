@@ -9,6 +9,7 @@ const express = require('../../../../../shared/express');
 const sentry = require('../../../../../shared/sentry');
 const routes = require('./routes');
 const APIVersionCompatibilityService = require('../../../../services/api-version-compatibility');
+const GhostNestApp = require('@tryghost/ghost');
 
 module.exports = function setupApiApp() {
     debug('Admin API setup start');
@@ -32,6 +33,16 @@ module.exports = function setupApiApp() {
 
     // Routing
     apiApp.use(routes());
+
+    const nestAppPromise = GhostNestApp.create().then(async (app) => {
+        await app.init();
+        return app;
+    });
+
+    apiApp.use(async (req, res, next) => {
+        const app = await nestAppPromise;
+        app.getHttpAdapter().getInstance()(req, res, next);
+    });
 
     // API error handling
     apiApp.use(errorHandler.resourceNotFound);
